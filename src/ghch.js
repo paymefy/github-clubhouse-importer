@@ -34,7 +34,30 @@ const githubClubhouseImport = options => {
       })
   }
 
-  function importIssuesToClubhouse(issues) {
+  function discardAlreadyImported(issues){
+    const clubhouse = Clubhouse.create(options.clubhouseToken)
+    return clubhouse.listStories(options.clubhouseProject)
+                    .then(stories => {                      
+                      issues = issues.filter((issue)=>{
+                        for (var story of stories){
+                          if (story.external_id.split('/').pop() == issue.number.toString()){
+                            return false
+                          }
+                        }
+                        return true     
+                      })                      
+                      return issues
+                    })
+                    .catch((err)=>{log(err)
+                      spinner.fail(
+                        `Failed to fetch stories from project ${chalk.underline(options.clubhouseProject)}\n`
+                      )
+                      log(chalk.red(err))
+                    })
+    
+  }
+  
+  function importIssuesToClubhouse(issues) {        
     const clubhouse = Clubhouse.create(options.clubhouseToken)
     return clubhouse
       .getProject(options.clubhouseProject)
@@ -79,12 +102,18 @@ const githubClubhouseImport = options => {
   fetchGithubIssues().then(issues => {
     githubSpinner.succeed(
       `Retrieved ${chalk.bold(issues.length)} issues from Github`
-    )
-    const clubhouseSpinner = ora('Importing issues into Clubhouse').start()
-    importIssuesToClubhouse(issues).then(issuesImported => {
-      clubhouseSpinner.succeed(
-        `Imported ${chalk.bold(issuesImported)} issues into Clubhouse`
+    ) 
+    const filterSpinner = ora('Importing issues into Clubhouse').start()       
+    discardAlreadyImported(issues).then(issuesFiltered => {
+      filterSpinner.succeed(
+        `Discarded ${chalk.bold(issues.length-issuesFiltered.length)} already imported issues`
       )
+      const clubhouseSpinner = ora('Importing issues into Clubhouse').start()
+      importIssuesToClubhouse(issuesFiltered).then(issuesImported => {
+        clubhouseSpinner.succeed(
+          `Imported ${chalk.bold(issuesImported)} issues into Clubhouse`
+        )
+      })
     })
   })
 }
@@ -129,9 +158,9 @@ const validateOptions = options => {
 }
 
 function getStoryType(labels) {
-  if (labels.find(label => label.name.includes('bug'))) return 'bug'
+  if (labels.find(label => label.name.includes('enhancement'))) return 'feature'
   if (labels.find(label => label.name.includes('chore'))) return 'chore'
-  return 'feature'
+  return 'bug'
 }
 
 const reflect = p =>
