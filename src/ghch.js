@@ -1,4 +1,4 @@
-const Octokit = require('@octokit/rest')
+const { Octokit } = require('@octokit/rest')
 const Clubhouse = require('clubhouse-lib')
 const ora = require('ora')
 const chalk = require('chalk')
@@ -40,11 +40,12 @@ const githubClubhouseImport = options => {
                     .then(stories => {                      
                       issues = issues.filter((issue)=>{
                         for (var story of stories){
-                          if (story.external_id.split('/').pop() == issue.number.toString()){
+                          if (('string' == typeof story.external_id) &&                              
+                              (story.external_id.toString() == issue.number.toString())){
                             return false
                           }
                         }
-                        return true     
+                        return true 
                       })                      
                       return issues
                     })
@@ -58,7 +59,7 @@ const githubClubhouseImport = options => {
   }
   
   function importIssuesToClubhouse(issues) {        
-    const clubhouse = Clubhouse.create(options.clubhouseToken)
+    const clubhouse = Clubhouse.create(options.clubhouseToken)    
     return clubhouse
       .getProject(options.clubhouseProject)
       .then(project => {
@@ -66,19 +67,25 @@ const githubClubhouseImport = options => {
         return Promise.all(
           issues.map(({ created_at, updated_at, labels, title, body, html_url, number }) => {
             const story_type = getStoryType(labels)
+            story_data = {
+              created_at,
+              updated_at,
+              story_type,
+              requested_by_id: options.requesterId,
+              labels: [{ "color": "silver", "description": "issue", "external_id": "2096", "name": "issue" }],
+              name: title,
+              description: body.replace('{$github-issue-url}',html_url).replace('{$github-issue}',number.toString()).toString(),
+              external_id: number.toString(),
+              external_links: [html_url],
+              external_tickets:[{external_url:html_url, external_id: number.toString()}],
+              project_id: project.id,
+            }
             return reflect(
               clubhouse
-                .createStory({
-                  created_at,
-                  updated_at,
-                  story_type,
-                  name: title,
-                  description: body,
-                  external_id: html_url,
-                  project_id: project.id,
-                })
+                .createStory(story_data)
                 .then(() => (issuesImported = issuesImported + 1))
-                .catch(() => {
+                .catch((error) => {
+                  log(error)
                   log(chalk.red(`Failed to import issue #${number}`))
                 })
             )
