@@ -8,10 +8,11 @@ const cli = meow(
     $ ghch <options>
 
 	Options
-    --github-token=<token>       Github API Token, must have repository scope
+    --github-token=<token>       Github API Token, must have repository scope    
     --clubhouse-token=<token>    Clubhouse API Token
     --github-url=<onwer/name>    Github repository owner/name, e.g. facebook/react
     --clubhouse-project=<id>     ID of Clubhouse Project to import issues into
+    --requester-id=<clubhouse username> The username to be used as the stories requester
     --state=<open|closed|all>    Github issue state to import
 
 	Examples
@@ -35,6 +36,10 @@ const cli = meow(
         type: 'string',
         default: 'open',
       },
+      requesterId:{
+        type: 'string',
+        default: '5f2962f8-ab85-40dd-82dc-d12499bcc030'
+      }
     },
   }
 )
